@@ -195,6 +195,9 @@ O repositório adota rigorosamente a especificação [Conventional Commits](http
 5. `feat(web): implement Chart.js dynamic data visualization`
 6. `feat(web): add real-time status badges and alert triggers`
 7. `docs: add comprehensive README.md with architecture and setup instructions`
+8. `refactor(web): rename application to Smart Air in dashboard and titles`
+9. `style(web): redesign dashboard UI with glassmorphism and neon accent palette`
+10. `feat(web): add visual progress bars, status glow effects and enhanced Chart.js gradients`
 
 ---
 

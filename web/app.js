@@ -107,8 +107,8 @@ function playAlertBeep() {
     const gain = state.audioContext.createGain();
     
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, state.audioContext.currentTime); // A5
-    osc.frequency.exponentialRampToValueAtTime(440, state.audioContext.currentTime + 0.3); // Pitch bend down
+    osc.frequency.setValueAtTime(880, state.audioContext.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, state.audioContext.currentTime + 0.3);
     
     gain.gain.setValueAtTime(0.2, state.audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, state.audioContext.currentTime + 0.3);
@@ -119,7 +119,7 @@ function playAlertBeep() {
     osc.start();
     osc.stop(state.audioContext.currentTime + 0.3);
   } catch (e) {
-    console.debug('AudioContext not allowed or not supported yet');
+    console.debug('AudioContext notice:', e);
   }
 }
 
@@ -195,8 +195,83 @@ function formatDate(date) {
   return date.toLocaleDateString('pt-BR');
 }
 
+// Relative elapsed time formatter
+function formatRelativeTime(date) {
+  if (!date) return 'agora';
+  const diffSec = Math.floor((new Date() - date) / 1000);
+  if (diffSec < 5) return 'agora';
+  if (diffSec < 60) return `há ${diffSec}s`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `há ${diffMin} min`;
+  return `há ${Math.floor(diffMin / 60)}h`;
+}
+
 // ============================================================================
-// CHART.JS DYNAMIC VISUALIZATION ENGINE
+// SPARKLINE SVG DYNAMIC TREND RENDERER
+// ============================================================================
+function renderSparkline(svgPrefix, dataList, strokeColor, fillColor, decimals, unit) {
+  const lineEl = document.getElementById(`${svgPrefix}-line`);
+  const areaEl = document.getElementById(`${svgPrefix}-area`);
+  const trendBox = document.getElementById(`trend-${svgPrefix.replace('sparkline-', '')}-box`);
+  const trendVal = document.getElementById(`trend-${svgPrefix.replace('sparkline-', '')}-val`);
+  const trendIcon = document.getElementById(`trend-${svgPrefix.replace('sparkline-', '')}-icon`);
+
+  if (!dataList || dataList.length < 2) return;
+
+  const width = 100;
+  const height = 30;
+  const padding = 2;
+
+  const min = Math.min(...dataList);
+  const max = Math.max(...dataList);
+  const range = max - min === 0 ? 1 : max - min;
+
+  // Build SVG Path points
+  const points = dataList.map((val, idx) => {
+    const x = (idx / (dataList.length - 1)) * width;
+    const y = height - padding - ((val - min) / range) * (height - padding * 2);
+    return { x: x.toFixed(1), y: y.toFixed(1) };
+  });
+
+  const linePath = points.reduce((acc, pt, i) => {
+    return i === 0 ? `M ${pt.x} ${pt.y}` : `${acc} L ${pt.x} ${pt.y}`;
+  }, '');
+
+  const areaPath = `${linePath} L ${width} ${height} L 0 ${height} Z`;
+
+  if (lineEl) {
+    lineEl.setAttribute('d', linePath);
+    lineEl.setAttribute('stroke', strokeColor);
+  }
+  if (areaEl) {
+    areaEl.setAttribute('d', areaPath);
+    areaEl.setAttribute('fill', fillColor);
+  }
+
+  // Calculate Delta Trend
+  if (trendVal && trendIcon) {
+    const last = dataList[dataList.length - 1];
+    const prev = dataList[dataList.length - 2];
+    const delta = last - prev;
+
+    if (Math.abs(delta) < (decimals === 3 ? 0.002 : 1)) {
+      trendVal.textContent = 'estável';
+      trendIcon.className = 'fa-solid fa-arrow-right text-[10px]';
+      if (trendBox) trendBox.className = 'flex items-center text-xs font-semibold text-slate-400 gap-1 bg-slate-800/60 px-2 py-0.5 rounded-full border border-white/10';
+    } else if (delta > 0) {
+      trendVal.textContent = `+${delta.toFixed(decimals)}`;
+      trendIcon.className = 'fa-solid fa-arrow-trend-up text-[10px]';
+      if (trendBox) trendBox.className = 'flex items-center text-xs font-semibold text-amber-400 gap-1 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30';
+    } else {
+      trendVal.textContent = `${delta.toFixed(decimals)}`;
+      trendIcon.className = 'fa-solid fa-arrow-trend-down text-[10px]';
+      if (trendBox) trendBox.className = 'flex items-center text-xs font-semibold text-emerald-400 gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30';
+    }
+  }
+}
+
+// ============================================================================
+// CHART.JS DYNAMIC VISUALIZATION ENGINE WITH ENHANCED GRADIENTS
 // ============================================================================
 function initChart() {
   const ctx = document.getElementById('airQualityChart');
@@ -204,17 +279,20 @@ function initChart() {
 
   const chartCtx = ctx.getContext('2d');
 
-  // Gradient Fills
-  const gradientEco2 = chartCtx.createLinearGradient(0, 0, 0, 300);
-  gradientEco2.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+  // Multi-stop neon gradient fills
+  const gradientEco2 = chartCtx.createLinearGradient(0, 0, 0, 320);
+  gradientEco2.addColorStop(0, 'rgba(16, 185, 129, 0.40)');
+  gradientEco2.addColorStop(0.5, 'rgba(16, 185, 129, 0.12)');
   gradientEco2.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
-  const gradientTvoc = chartCtx.createLinearGradient(0, 0, 0, 300);
-  gradientTvoc.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
-  gradientTvoc.addColorStop(1, 'rgba(6, 182, 212, 0.0)');
+  const gradientTvoc = chartCtx.createLinearGradient(0, 0, 0, 320);
+  gradientTvoc.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
+  gradientTvoc.addColorStop(0.5, 'rgba(56, 189, 248, 0.10)');
+  gradientTvoc.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
 
-  const gradientMq135 = chartCtx.createLinearGradient(0, 0, 0, 300);
-  gradientMq135.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
+  const gradientMq135 = chartCtx.createLinearGradient(0, 0, 0, 320);
+  gradientMq135.addColorStop(0, 'rgba(245, 158, 11, 0.35)');
+  gradientMq135.addColorStop(0.5, 'rgba(245, 158, 11, 0.10)');
   gradientMq135.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
 
   state.chartInstance = new Chart(chartCtx, {
@@ -227,29 +305,31 @@ function initChart() {
           data: [],
           borderColor: '#10b981',
           backgroundColor: gradientEco2,
-          borderWidth: 2.2,
+          borderWidth: 2.4,
           pointBackgroundColor: '#10b981',
-          pointBorderColor: '#0f172a',
-          pointBorderWidth: 1.5,
+          pointBorderColor: '#030712',
+          pointBorderWidth: 2,
           pointRadius: 3,
           pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#34d399',
           fill: true,
-          tension: 0.35,
+          tension: 0.4, // Curvatura tensionada e suave
           yAxisID: 'y'
         },
         {
           label: 'TVOC (ppb)',
           data: [],
-          borderColor: '#06b6d4',
+          borderColor: '#38bdf8',
           backgroundColor: gradientTvoc,
-          borderWidth: 2,
-          pointBackgroundColor: '#06b6d4',
-          pointBorderColor: '#0f172a',
-          pointBorderWidth: 1.5,
+          borderWidth: 2.2,
+          pointBackgroundColor: '#38bdf8',
+          pointBorderColor: '#030712',
+          pointBorderWidth: 2,
           pointRadius: 3,
           pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#7dd3fc',
           fill: true,
-          tension: 0.35,
+          tension: 0.4,
           yAxisID: 'y1'
         },
         {
@@ -257,14 +337,15 @@ function initChart() {
           data: [],
           borderColor: '#f59e0b',
           backgroundColor: gradientMq135,
-          borderWidth: 2,
+          borderWidth: 2.2,
           pointBackgroundColor: '#f59e0b',
-          pointBorderColor: '#0f172a',
-          pointBorderWidth: 1.5,
+          pointBorderColor: '#030712',
+          pointBorderWidth: 2,
           pointRadius: 3,
           pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#fbbf24',
           fill: true,
-          tension: 0.35,
+          tension: 0.4,
           yAxisID: 'y2'
         }
       ]
@@ -281,17 +362,18 @@ function initChart() {
           display: false,
         },
         tooltip: {
-          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          backgroundColor: 'rgba(3, 7, 18, 0.92)',
           titleColor: '#f8fafc',
           bodyColor: '#cbd5e1',
-          borderColor: 'rgba(51, 65, 85, 0.8)',
+          borderColor: 'rgba(255, 255, 255, 0.15)',
           borderWidth: 1,
-          padding: 12,
+          padding: 14,
           boxPadding: 6,
           usePointStyle: true,
+          cornerRadius: 12,
           callbacks: {
             title: function (items) {
-              return `Horário: ${items[0].label}`;
+              return `Leitura: ${items[0].label}`;
             },
             label: function (context) {
               const datasetLabel = context.dataset.label || '';
@@ -311,12 +393,12 @@ function initChart() {
       scales: {
         x: {
           grid: {
-            color: 'rgba(51, 65, 85, 0.25)',
-            borderColor: 'rgba(51, 65, 85, 0.6)'
+            color: 'rgba(255, 255, 255, 0.05)',
+            borderColor: 'rgba(255, 255, 255, 0.1)'
           },
           ticks: {
             color: '#94a3b8',
-            font: { family: 'Inter', size: 10 },
+            font: { family: 'Inter', size: 10, weight: '500' },
             maxRotation: 45,
             minRotation: 0,
             autoSkip: true,
@@ -334,7 +416,7 @@ function initChart() {
             font: { family: 'Inter', size: 10, weight: 'bold' }
           },
           grid: {
-            color: 'rgba(51, 65, 85, 0.25)'
+            color: 'rgba(255, 255, 255, 0.05)'
           },
           ticks: {
             color: '#10b981',
@@ -349,14 +431,14 @@ function initChart() {
           title: {
             display: true,
             text: 'TVOC (ppb)',
-            color: '#06b6d4',
+            color: '#38bdf8',
             font: { family: 'Inter', size: 10, weight: 'bold' }
           },
           grid: {
             drawOnChartArea: false
           },
           ticks: {
-            color: '#06b6d4',
+            color: '#38bdf8',
             font: { family: 'Inter', size: 10 }
           }
         },
@@ -429,7 +511,7 @@ function updateChartData(feeds) {
 }
 
 // ============================================================================
-// REAL-TIME STATUS BADGES & ALERT TRIGGERS
+// REAL-TIME STATUS BADGES, GLOWS & ALERT TRIGGERS
 // ============================================================================
 
 // Update UI with latest feed
@@ -438,14 +520,15 @@ function updateDashboardUI(latest, allFeeds) {
 
   const meta = STATUS_LEVELS[latest.generalLevel] || STATUS_LEVELS[0];
 
-  // 1. General Air Quality Badge & Description
+  // 1. General Air Quality Badge & Neon Text Glow
   const genBadge = document.getElementById('general-status-badge');
   const genText = document.getElementById('general-status-text');
   const genDesc = document.getElementById('general-status-desc');
 
   if (genBadge && genText) {
-    genBadge.className = `inline-flex items-center gap-2 px-4 py-2 rounded-xl text-base font-bold tracking-wide border shadow-sm ${meta.badgeClass} badge-pulse`;
+    genBadge.className = `inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl text-base font-extrabold tracking-wide border shadow-lg transition-all duration-300 ${meta.badgeClass}`;
     genText.textContent = meta.name;
+    genText.className = meta.glowClass;
   }
   if (genDesc) {
     genDesc.textContent = meta.desc;
@@ -456,9 +539,9 @@ function updateDashboardUI(latest, allFeeds) {
     const stepEl = document.getElementById(`bar-step-${i}`);
     if (stepEl) {
       if (i <= latest.generalLevel) {
-        stepEl.className = `rounded-sm ${STATUS_LEVELS[i].bgClass} opacity-100 transition-all duration-300 shadow-sm`;
+        stepEl.className = `rounded-full ${STATUS_LEVELS[i].bgClass} opacity-100 transition-all duration-300 shadow-[0_0_8px_currentColor]`;
       } else {
-        stepEl.className = `rounded-sm ${STATUS_LEVELS[i].bgClass} opacity-20 transition-all duration-300`;
+        stepEl.className = `rounded-full ${STATUS_LEVELS[i].bgClass} opacity-20 transition-all duration-300`;
       }
     }
   }
@@ -470,10 +553,6 @@ function updateDashboardUI(latest, allFeeds) {
   if (dateEl) dateEl.textContent = formatDate(latest.createdAt);
 
   // 4. Hardware LEDs Mirror (ESP32 GPIO 25, 27, 26)
-  // Firmware rule:
-  // LED_VERDE: geral < NIVEL_AMARELO (2)
-  // LED_AMARELO: geral >= 2 && geral < NIVEL_VERMELHO (3)
-  // LED_VERMELHO: geral >= 3
   const ledGreen = document.getElementById('hw-led-green');
   const ledYellow = document.getElementById('hw-led-yellow');
   const ledRed = document.getElementById('hw-led-red');
@@ -481,20 +560,20 @@ function updateDashboardUI(latest, allFeeds) {
   if (ledGreen) {
     ledGreen.className = latest.generalLevel < 2 
       ? 'w-4 h-4 rounded-full led-active-green' 
-      : 'w-4 h-4 rounded-full bg-slate-700';
+      : 'w-4 h-4 rounded-full bg-slate-800';
   }
   if (ledYellow) {
     ledYellow.className = (latest.generalLevel >= 2 && latest.generalLevel < 3)
       ? 'w-4 h-4 rounded-full led-active-yellow' 
-      : 'w-4 h-4 rounded-full bg-slate-700';
+      : 'w-4 h-4 rounded-full bg-slate-800';
   }
   if (ledRed) {
     ledRed.className = latest.generalLevel >= 3 
       ? 'w-4 h-4 rounded-full led-active-red' 
-      : 'w-4 h-4 rounded-full bg-slate-700';
+      : 'w-4 h-4 rounded-full bg-slate-800';
   }
 
-  // 5. Metric Cards
+  // 5. Metric Cards with Progress Bars & Sparklines
   // eCO2
   const valEco2 = document.getElementById('val-eco2');
   const progEco2 = document.getElementById('prog-eco2');
@@ -503,12 +582,12 @@ function updateDashboardUI(latest, allFeeds) {
   const eco2Percent = Math.min(100, Math.max(5, (latest.eco2 / 2500) * 100));
   if (progEco2) {
     progEco2.style.width = `${eco2Percent}%`;
-    progEco2.className = latest.eco2 > 1000 ? (latest.eco2 > 1500 ? 'bg-red-500 h-full rounded-full transition-all' : 'bg-amber-500 h-full rounded-full transition-all') : 'bg-emerald-500 h-full rounded-full transition-all';
+    progEco2.className = latest.eco2 > 1000 ? (latest.eco2 > 1500 ? 'neon-prog-danger h-full rounded-full transition-all' : 'neon-prog-warn h-full rounded-full transition-all') : 'neon-prog-eco2 h-full rounded-full transition-all';
   }
   if (badgeEco2) {
     const lvlEco2 = calculateLevel(latest.eco2, THRESHOLDS.ECO2);
     badgeEco2.textContent = THRESHOLDS.NAMES[lvlEco2];
-    badgeEco2.className = `px-2 py-0.5 rounded text-[10px] font-semibold ${STATUS_LEVELS[lvlEco2].badgeClass}`;
+    badgeEco2.className = `px-2.5 py-0.5 rounded-full text-[10px] font-bold ${STATUS_LEVELS[lvlEco2].badgeClass}`;
   }
 
   // TVOC
@@ -519,12 +598,12 @@ function updateDashboardUI(latest, allFeeds) {
   const tvocPercent = Math.min(100, Math.max(5, (latest.tvoc / 2200) * 100));
   if (progTvoc) {
     progTvoc.style.width = `${tvocPercent}%`;
-    progTvoc.className = latest.tvoc > 220 ? (latest.tvoc > 660 ? 'bg-red-500 h-full rounded-full transition-all' : 'bg-amber-500 h-full rounded-full transition-all') : 'bg-cyan-500 h-full rounded-full transition-all';
+    progTvoc.className = latest.tvoc > 220 ? (latest.tvoc > 660 ? 'neon-prog-danger h-full rounded-full transition-all' : 'neon-prog-warn h-full rounded-full transition-all') : 'neon-prog-tvoc h-full rounded-full transition-all';
   }
   if (badgeTvoc) {
     const lvlTvoc = calculateLevel(latest.tvoc, THRESHOLDS.TVOC);
     badgeTvoc.textContent = THRESHOLDS.NAMES[lvlTvoc];
-    badgeTvoc.className = `px-2 py-0.5 rounded text-[10px] font-semibold ${STATUS_LEVELS[lvlTvoc].badgeClass}`;
+    badgeTvoc.className = `px-2.5 py-0.5 rounded-full text-[10px] font-bold ${STATUS_LEVELS[lvlTvoc].badgeClass}`;
   }
 
   // MQ-135
@@ -535,13 +614,18 @@ function updateDashboardUI(latest, allFeeds) {
   const mqPercent = Math.min(100, Math.max(5, (latest.mq135 / 0.35) * 100));
   if (progMq) {
     progMq.style.width = `${mqPercent}%`;
-    progMq.className = latest.mq135 > 0.10 ? (latest.mq135 > 0.20 ? 'bg-red-500 h-full rounded-full transition-all' : 'bg-amber-500 h-full rounded-full transition-all') : 'bg-amber-500 h-full rounded-full transition-all';
+    progMq.className = latest.mq135 > 0.10 ? (latest.mq135 > 0.20 ? 'neon-prog-danger h-full rounded-full transition-all' : 'neon-prog-warn h-full rounded-full transition-all') : 'neon-prog-mq135 h-full rounded-full transition-all';
   }
   if (badgeMq) {
     const lvlMq = calculateLevel(latest.mq135, THRESHOLDS.MQ135);
     badgeMq.textContent = THRESHOLDS.NAMES[lvlMq];
-    badgeMq.className = `px-2 py-0.5 rounded text-[10px] font-semibold ${STATUS_LEVELS[lvlMq].badgeClass}`;
+    badgeMq.className = `px-2.5 py-0.5 rounded-full text-[10px] font-bold ${STATUS_LEVELS[lvlMq].badgeClass}`;
   }
+
+  // Render Sparklines
+  renderSparkline('sparkline-eco2', allFeeds.map(f => f.eco2), '#10b981', 'rgba(16, 185, 129, 0.15)', 0, 'ppm');
+  renderSparkline('sparkline-tvoc', allFeeds.map(f => f.tvoc), '#38bdf8', 'rgba(56, 189, 248, 0.15)', 0, 'ppb');
+  renderSparkline('sparkline-mq135', allFeeds.map(f => f.mq135), '#f59e0b', 'rgba(245, 158, 11, 0.15)', 3, 'V');
 
   // Alert State Card & Global Emergency Alert Banner
   const isAlertActive = latest.alertFlag === 1 || latest.generalLevel >= 2;
@@ -555,62 +639,65 @@ function updateDashboardUI(latest, allFeeds) {
   const bannerTitle = document.getElementById('alert-banner-title');
   const bannerMsg = document.getElementById('alert-banner-message');
   const bannerIconBox = document.getElementById('alert-banner-icon-box');
-  const bannerIcon = document.getElementById('alert-banner-icon');
+  const bannerElapsed = document.getElementById('alert-banner-elapsed');
 
   if (isAlertActive) {
     if (valAlert) {
       valAlert.textContent = "ALERTA ATIVO";
-      valAlert.className = "text-3xl font-extrabold tracking-tight text-amber-400 animate-pulse";
+      valAlert.className = "text-3xl sm:text-4xl font-black tracking-tight text-amber-400 animate-pulse neon-glow-amber";
     }
     if (badgeAlert) {
       badgeAlert.textContent = "Disparo Ativo";
-      badgeAlert.className = "px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40";
+      badgeAlert.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold badge-neon-amber";
     }
     if (progAlert) {
       progAlert.style.width = "100%";
-      progAlert.className = "bg-amber-500 h-full rounded-full";
+      progAlert.className = "neon-prog-danger h-full rounded-full";
     }
     if (alertIconBox) {
-      alertIconBox.className = "w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 animate-bounce";
+      alertIconBox.className = "w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-center text-amber-400 animate-bounce shadow-[0_0_15px_rgba(245,158,11,0.4)]";
     }
 
     // Trigger audible alarm if enabled
     playAlertBeep();
 
-    // Show Global Alert Banner
+    // Show Global Alert Banner with Pulsing Border
     if (globalBanner) {
       globalBanner.classList.remove('hidden');
-      globalBanner.className = `relative overflow-hidden rounded-2xl border p-5 shadow-2xl transition-all duration-300 ${meta.alertClass || 'alert-glow-amber'}`;
+      globalBanner.className = `relative overflow-hidden rounded-3xl p-5 sm:p-6 shadow-2xl transition-all duration-300 ${meta.alertClass || 'alert-banner-amber'}`;
     }
     if (bannerBadge) {
       bannerBadge.textContent = meta.name;
-      bannerBadge.className = `px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${meta.badgeClass}`;
+      bannerBadge.className = `px-3 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wider ${meta.badgeClass}`;
     }
     if (bannerTitle) {
       bannerTitle.textContent = `ATENÇÃO: QUALIDADE DO AR ${meta.name}`;
-      bannerTitle.className = `text-lg font-bold tracking-tight ${meta.textClass}`;
+      bannerTitle.className = `text-lg sm:text-xl font-extrabold tracking-tight ${meta.textClass}`;
     }
     if (bannerMsg) {
       bannerMsg.textContent = `Foram detectados níveis anormais no ambiente (eCO2: ${Math.round(latest.eco2)} ppm | TVOC: ${Math.round(latest.tvoc)} ppb | MQ-135: ${latest.mq135.toFixed(3)} V). ${meta.desc}`;
     }
     if (bannerIconBox) {
-      bannerIconBox.className = `w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${meta.bgClass}/20 ${meta.textClass}`;
+      bannerIconBox.className = `w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${meta.bgClass}/20 ${meta.textClass} border border-white/10`;
+    }
+    if (bannerElapsed) {
+      bannerElapsed.textContent = formatRelativeTime(latest.createdAt);
     }
   } else {
     if (valAlert) {
       valAlert.textContent = "NORMAL";
-      valAlert.className = "text-3xl font-extrabold tracking-tight text-white";
+      valAlert.className = "text-3xl sm:text-4xl font-black tracking-tight text-white";
     }
     if (badgeAlert) {
       badgeAlert.textContent = "Sem Disparo";
-      badgeAlert.className = "px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+      badgeAlert.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
     }
     if (progAlert) {
       progAlert.style.width = "0%";
       progAlert.className = "bg-emerald-500 h-full rounded-full";
     }
     if (alertIconBox) {
-      alertIconBox.className = "w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400";
+      alertIconBox.className = "w-10 h-10 rounded-2xl bg-slate-800/80 border border-white/10 flex items-center justify-center text-slate-400";
     }
     if (globalBanner) {
       globalBanner.classList.add('hidden');
@@ -642,9 +729,9 @@ function updateHistoryTab(feeds) {
   if (alertBadgeCount) {
     alertBadgeCount.textContent = alertCount;
     if (alertCount > 0) {
-      alertBadgeCount.className = "ml-1.5 px-2 py-0.2 text-[10px] rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse";
+      alertBadgeCount.className = "px-1.5 py-0.2 text-[10px] rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse font-mono";
     } else {
-      alertBadgeCount.className = "ml-1.5 px-2 py-0.2 text-[10px] rounded-full bg-slate-800 text-slate-400";
+      alertBadgeCount.className = "px-1.5 py-0.2 text-[10px] rounded-full bg-slate-800 text-slate-400 font-mono";
     }
   }
 
@@ -658,21 +745,21 @@ function updateHistoryTab(feeds) {
     const isAlert = feed.alertFlag === 1 || feed.generalLevel >= 2;
 
     return `
-      <tr class="border-b border-slate-800/60 ${isAlert ? 'bg-amber-500/5' : ''}">
-        <td class="py-3 px-4 font-mono text-slate-400">#${feed.entryId}</td>
-        <td class="py-3 px-4 text-slate-300 font-sans whitespace-nowrap">
-          ${formatDate(feed.createdAt)} <span class="text-slate-500">${formatTime(feed.createdAt)}</span>
+      <tr class="border-b border-white/5 transition hover:bg-slate-800/40 ${isAlert ? 'bg-amber-500/5' : ''}">
+        <td class="py-3.5 px-4 font-mono text-slate-400 font-semibold">#${feed.entryId}</td>
+        <td class="py-3.5 px-4 text-slate-300 font-sans whitespace-nowrap">
+          ${formatDate(feed.createdAt)} <span class="text-slate-500 ml-1 font-mono">${formatTime(feed.createdAt)}</span>
         </td>
-        <td class="py-3 px-4 text-emerald-400 font-semibold">${Math.round(feed.eco2)}</td>
-        <td class="py-3 px-4 text-cyan-400 font-semibold">${Math.round(feed.tvoc)}</td>
-        <td class="py-3 px-4 text-amber-400 font-semibold">${feed.mq135.toFixed(3)}</td>
-        <td class="py-3 px-4">
-          <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${isAlert ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400'}">
+        <td class="py-3.5 px-4 text-emerald-400 font-bold">${Math.round(feed.eco2)}</td>
+        <td class="py-3.5 px-4 text-sky-400 font-bold">${Math.round(feed.tvoc)}</td>
+        <td class="py-3.5 px-4 text-amber-400 font-bold">${feed.mq135.toFixed(3)}</td>
+        <td class="py-3.5 px-4">
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${isAlert ? 'badge-neon-amber' : 'bg-slate-800 text-slate-400 border border-white/5'}">
             ${isAlert ? 'ALERTA (1)' : 'NORMAL (0)'}
           </span>
         </td>
-        <td class="py-3 px-4">
-          <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${meta.badgeClass}">
+        <td class="py-3.5 px-4">
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${meta.badgeClass}">
             ${meta.name}
           </span>
         </td>
@@ -692,10 +779,10 @@ function updateAlertsTab(feeds) {
   if (summaryTag) {
     if (alertFeeds.length > 0) {
       summaryTag.textContent = `${alertFeeds.length} evento(s) registrado(s)`;
-      summaryTag.className = "px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40";
+      summaryTag.className = "px-3 py-1 rounded-full text-xs font-bold badge-neon-amber";
     } else {
       summaryTag.textContent = "Nenhuma anomalia";
-      summaryTag.className = "px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300";
+      summaryTag.className = "px-3 py-1 rounded-full text-xs font-bold bg-slate-900 border border-white/10 text-slate-300";
     }
   }
 
@@ -703,9 +790,9 @@ function updateAlertsTab(feeds) {
 
   if (alertFeeds.length === 0) {
     listEl.innerHTML = `
-      <div class="text-center py-12 text-slate-500 text-xs">
-        <i class="fa-solid fa-circle-check text-emerald-400 text-3xl mb-2"></i>
-        <p class="font-medium text-slate-300">Nenhum alerta crítico registrado nas últimas ${feeds.length} medições.</p>
+      <div class="text-center py-12 text-slate-400 text-xs">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-3xl mb-2 shadow-[0_0_15px_rgba(16,185,129,0.3)]"></i>
+        <p class="font-bold text-slate-200 mt-2">Nenhum alerta crítico registrado nas últimas ${feeds.length} medições.</p>
         <p class="text-[11px] text-slate-500 mt-1">Ambiente mantido em níveis satisfatórios (Excelente / Boa).</p>
       </div>
     `;
@@ -715,25 +802,25 @@ function updateAlertsTab(feeds) {
   listEl.innerHTML = alertFeeds.map(feed => {
     const meta = STATUS_LEVELS[feed.generalLevel] || STATUS_LEVELS[2];
     return `
-      <div class="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-start justify-between gap-3 transition hover:border-slate-700">
-        <div class="flex items-start space-x-3">
-          <div class="w-8 h-8 rounded-lg ${meta.bgClass}/20 ${meta.textClass} flex items-center justify-center shrink-0 mt-0.5">
+      <div class="p-4 rounded-2xl border border-white/5 glass-subcard flex items-start justify-between gap-3 transition hover:border-white/15">
+        <div class="flex items-start space-x-3.5">
+          <div class="w-9 h-9 rounded-xl ${meta.bgClass}/20 ${meta.textClass} flex items-center justify-center shrink-0 mt-0.5 border border-white/10 shadow-sm">
             <i class="fa-solid fa-triangle-exclamation text-sm"></i>
           </div>
           <div>
             <div class="flex items-center space-x-2">
               <span class="text-xs font-bold text-slate-200">Qualidade ${meta.name}</span>
-              <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">Entry #${feed.entryId}</span>
+              <span class="text-[10px] px-2 py-0.2 rounded-full bg-slate-900 border border-white/10 text-slate-400 font-mono">Entry #${feed.entryId}</span>
             </div>
-            <p class="text-[11px] text-slate-400 mt-0.5">
-              Valores: eCO2 <strong class="text-emerald-400">${Math.round(feed.eco2)} ppm</strong>, 
-              TVOC <strong class="text-cyan-400">${Math.round(feed.tvoc)} ppb</strong>, 
-              MQ-135 <strong class="text-amber-400">${feed.mq135.toFixed(3)} V</strong>
+            <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              Métricas: eCO2 <strong class="text-emerald-400 font-bold">${Math.round(feed.eco2)} ppm</strong>, 
+              TVOC <strong class="text-sky-400 font-bold">${Math.round(feed.tvoc)} ppb</strong>, 
+              MQ-135 <strong class="text-amber-400 font-bold">${feed.mq135.toFixed(3)} V</strong>
             </p>
           </div>
         </div>
         <div class="text-right shrink-0">
-          <div class="text-[11px] font-mono text-slate-300">${formatTime(feed.createdAt)}</div>
+          <div class="text-[11px] font-mono text-slate-200 font-bold">${formatTime(feed.createdAt)}</div>
           <div class="text-[10px] text-slate-500 font-mono">${formatDate(feed.createdAt)}</div>
         </div>
       </div>
@@ -799,7 +886,7 @@ async function fetchThingSpeakData() {
       
       // Update connection indicator to connected
       if (statusDot) {
-        statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+        statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_#10b981]";
       }
       if (pingIndicator) {
         pingIndicator.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
@@ -820,7 +907,7 @@ async function fetchThingSpeakData() {
     console.error('[Smart Air] Erro ao buscar telemetria do ThingSpeak:', err);
     
     if (statusDot) {
-      statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";
+      statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500 shadow-[0_0_8px_#f59e0b]";
     }
     if (pingIndicator) {
       pingIndicator.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
@@ -843,6 +930,12 @@ function startPollingTimer() {
     state.countdown--;
     if (timerEl) {
       timerEl.textContent = `${state.countdown}s`;
+    }
+
+    // Live update alert relative elapsed time
+    const bannerElapsed = document.getElementById('alert-banner-elapsed');
+    if (bannerElapsed && state.lastUpdated) {
+      bannerElapsed.textContent = formatRelativeTime(state.lastUpdated);
     }
 
     if (state.countdown <= 0) {
