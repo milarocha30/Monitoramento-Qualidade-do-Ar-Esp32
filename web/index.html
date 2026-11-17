@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AeroGuard | Monitoramento da Qualidade do Ar ESP32</title>
+  <meta name="description" content="Dashboard Single Page Application para monitoramento em tempo real da qualidade do ar com ESP32, SGP30, MQ-135 e ThingSpeak." />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z'/></svg>" />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-slate-800 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Logo & Branding -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 ring-1 ring-white/20">
+            <i class="fa-solid fa-wind text-white text-lg animate-pulse"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+                AeroGuard
+              </span>
+              <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                ESP32 IoT
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 hidden sm:block">Monitoramento em Tempo Real de Qualidade do Ar</p>
+          </div>
+        </div>
+
+        <!-- Connection Badge & Controls -->
+        <div class="flex items-center space-x-3">
+          <!-- ThingSpeak Channel Pill -->
+          <div class="hidden md:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs">
+            <span class="relative flex h-2.5 w-2.5">
+              <span id="ping-indicator" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span id="status-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span class="text-slate-400">Canal:</span>
+            <span class="font-mono font-medium text-slate-200">#3577130</span>
+          </div>
+
+          <!-- Countdown Timer -->
+          <div class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs">
+            <i class="fa-regular fa-clock text-emerald-400"></i>
+            <span class="text-slate-400 hidden sm:inline">Atualização em:</span>
+            <span id="countdown-timer" class="font-mono font-bold text-emerald-400">20s</span>
+          </div>
+
+          <!-- Sound Alarm Toggle -->
+          <button id="btn-sound-toggle" title="Ativar/Desativar alerta sonoro" class="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300 hover:text-white transition">
+            <i id="sound-icon" class="fa-solid fa-volume-high text-xs"></i>
+          </button>
+
+          <!-- Refresh Button -->
+          <button id="btn-refresh" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 transition active:scale-95">
+            <i id="refresh-icon" class="fa-solid fa-rotate"></i>
+            <span class="hidden sm:inline">Atualizar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 sm:space-x-4 border-t border-slate-800/60 pt-1 pb-2 overflow-x-auto">
+        <button id="tab-dashboard" class="tab-button active flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition" onclick="switchTab('dashboard')">
+          <i class="fa-solid fa-chart-line text-emerald-400"></i>
+          <span>Dashboard</span>
+        </button>
+        <button id="tab-history" class="tab-button flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 transition" onclick="switchTab('history')">
+          <i class="fa-solid fa-table-list text-slate-400"></i>
+          <span>Histórico de Medições</span>
+          <span id="history-badge" class="ml-1.5 px-2 py-0.2 text-[10px] rounded-full bg-slate-800 text-slate-300">30</span>
+        </button>
+        <button id="tab-alerts" class="tab-button flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 transition" onclick="switchTab('alerts')">
+          <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+          <span>Painel de Alertas</span>
+          <span id="alerts-count-badge" class="ml-1.5 px-2 py-0.2 text-[10px] rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">0</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Active Global Emergency Alert Banner (Shown when field4 == 1 or nivel >= 2) -->
+    <div id="global-alert-banner" class="hidden relative overflow-hidden rounded-2xl border p-5 shadow-2xl transition-all duration-300">
+      <div class="flex items-start space-x-4">
+        <div id="alert-banner-icon-box" class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
+          <i id="alert-banner-icon" class="fa-solid fa-triangle-exclamation text-2xl"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between">
+            <h3 id="alert-banner-title" class="text-lg font-bold tracking-tight">ALERTA DE QUALIDADE DO AR</h3>
+            <span id="alert-banner-badge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider"></span>
+          </div>
+          <p id="alert-banner-message" class="text-sm mt-1"></p>
+          <div class="mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-black/30">
+              <i class="fa-solid fa-fan mr-1.5 text-blue-300"></i> Ação: Abra janelas e ative ventilação
+            </span>
+            <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-black/30">
+              <i class="fa-solid fa-shield-virus mr-1.5 text-amber-300"></i> Reduza fontes de poluentes e solventes
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: DASHBOARD                           -->
+    <!-- ========================================== -->
+    <section id="view-dashboard" class="space-y-6">
+
+      <!-- Hero Section: General Air Quality Status & Hardware LED Monitor -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Air Quality Status Overview (2 Cols) -->
+        <div class="lg:col-span-2 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-900/90 border border-slate-800 p-6 shadow-xl relative overflow-hidden">
+          <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/80">
+            <div>
+              <span class="text-xs font-semibold text-slate-400 tracking-wider uppercase">Índice Geral de Qualidade</span>
+              <h2 class="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2 mt-0.5">
+                Status Atual do Ambiente
+              </h2>
+            </div>
+            <!-- Dynamic Main Badge -->
+            <div id="general-status-badge" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-base font-bold tracking-wide border shadow-sm">
+              <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span id="general-status-text">CARREGANDO...</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+            <!-- Classification Details -->
+            <div class="sm:col-span-2 space-y-3">
+              <p id="general-status-desc" class="text-slate-300 text-sm leading-relaxed">
+                Obtendo telemetria dos sensores SGP30 e MQ-135 via ThingSpeak...
+              </p>
+              
+              <!-- 5-Tier Level Visual Bar -->
+              <div class="space-y-1.5">
+                <div class="flex justify-between text-[11px] font-medium text-slate-400">
+                  <span>Excelente</span>
+                  <span>Boa</span>
+                  <span>Moderada</span>
+                  <span>Ruim</span>
+                  <span>Muito Ruim</span>
+                </div>
+                <div class="grid grid-cols-5 gap-1.5 h-2.5 rounded-full overflow-hidden bg-slate-800 p-0.5">
+                  <div id="bar-step-0" class="rounded-sm bg-emerald-500/30 transition-all duration-300"></div>
+                  <div id="bar-step-1" class="rounded-sm bg-cyan-500/30 transition-all duration-300"></div>
+                  <div id="bar-step-2" class="rounded-sm bg-amber-500/30 transition-all duration-300"></div>
+                  <div id="bar-step-3" class="rounded-sm bg-orange-500/30 transition-all duration-300"></div>
+                  <div id="bar-step-4" class="rounded-sm bg-red-500/30 transition-all duration-300"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Last Reading Timestamp -->
+            <div class="flex flex-col justify-between bg-slate-950/50 rounded-xl p-4 border border-slate-800/60">
+              <div class="text-xs text-slate-400">
+                <i class="fa-solid fa-satellite-dish mr-1 text-slate-400"></i> Última Transmissão
+              </div>
+              <div>
+                <div id="last-updated-time" class="text-lg font-bold font-mono text-white">--:--:--</div>
+                <div id="last-updated-date" class="text-xs text-slate-500 font-mono">--/--/----</div>
+              </div>
+              <div class="text-[11px] text-slate-400 flex items-center gap-1.5 pt-2 border-t border-slate-800/60">
+                <i class="fa-solid fa-microchip text-emerald-400"></i>
+                <span>ESP32 WiFi Node</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hardware Mirror: ESP32 Diagnostic LEDs & State -->
+        <div class="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                <h3 class="font-bold text-sm text-slate-200">LEDs de Status do ESP32</h3>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">GPIO Pinout</span>
+            </div>
+            
+            <p class="text-xs text-slate-400 mt-3">
+              Espelhamento do acionamento dos LEDs físicos conectados às saídas digitais do ESP32:
+            </p>
+
+            <div class="space-y-3 mt-4">
+              <!-- LED Verde (GPIO 25) -->
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                <div class="flex items-center space-x-3">
+                  <span id="hw-led-green" class="w-4 h-4 rounded-full bg-slate-700 transition-all duration-300"></span>
+                  <div>
+                    <div class="text-xs font-semibold text-slate-200">LED Verde</div>
+                    <div class="text-[10px] text-slate-400">Nível &lt; 2 (Ar Adequado)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">GPIO 25</span>
+              </div>
+
+              <!-- LED Amarelo (GPIO 27) -->
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                <div class="flex items-center space-x-3">
+                  <span id="hw-led-yellow" class="w-4 h-4 rounded-full bg-slate-700 transition-all duration-300"></span>
+                  <div>
+                    <div class="text-xs font-semibold text-slate-200">LED Amarelo</div>
+                    <div class="text-[10px] text-slate-400">Nível 2 (Atenção / Moderado)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">GPIO 27</span>
+              </div>
+
+              <!-- LED Vermelho (GPIO 26) -->
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                <div class="flex items-center space-x-3">
+                  <span id="hw-led-red" class="w-4 h-4 rounded-full bg-slate-700 transition-all duration-300"></span>
+                  <div>
+                    <div class="text-xs font-semibold text-slate-200">LED Vermelho</div>
+                    <div class="text-[10px] text-slate-400">Nível &ge; 3 (Perigo / Crítico)</div>
+                  </div>
+                </div>
+                <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">GPIO 26</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-4 mt-2 border-t border-slate-800/80 text-[11px] text-slate-400 flex justify-between items-center">
+            <span>Intervalo de Envio: <strong class="text-slate-300 font-mono">20s</strong></span>
+            <span class="text-emerald-400 flex items-center gap-1">
+              <i class="fa-solid fa-wifi text-[10px]"></i> Wi-Fi STA
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Real-Time Metric Cards Grid (4 Cards) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+        <!-- Card 1: eCO2 (ppm) -->
+        <div class="card-metric rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-lg relative overflow-hidden transition-all duration-300 hover:border-slate-700 hover:shadow-xl">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dióxido de Carbono</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+              <i class="fa-solid fa-cloud"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="val-eco2" class="text-3xl font-extrabold font-mono text-white tracking-tight">--</span>
+            <span class="text-sm font-semibold text-slate-400">ppm</span>
+          </div>
+          <div class="mt-2 text-xs font-medium text-slate-400 flex items-center justify-between">
+            <span>Sensor SGP30 (I2C)</span>
+            <span id="status-eco2-badge" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300">Normal</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+            <div id="prog-eco2" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 25%"></div>
+          </div>
+          <div class="mt-2 text-[10px] text-slate-500 flex justify-between">
+            <span>Ref: 400 ppm (Ar puro)</span>
+            <span>Máx: 2500+ ppm</span>
+          </div>
+        </div>
+
+        <!-- Card 2: TVOC (ppb) -->
+        <div class="card-metric rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-lg relative overflow-hidden transition-all duration-300 hover:border-slate-700 hover:shadow-xl">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Compostos Orgânicos</span>
+            <div class="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <i class="fa-solid fa-flask"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="val-tvoc" class="text-3xl font-extrabold font-mono text-white tracking-tight">--</span>
+            <span class="text-sm font-semibold text-slate-400">ppb</span>
+          </div>
+          <div class="mt-2 text-xs font-medium text-slate-400 flex items-center justify-between">
+            <span>Sensor SGP30 (TVOC)</span>
+            <span id="status-tvoc-badge" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300">Normal</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+            <div id="prog-tvoc" class="bg-cyan-500 h-full rounded-full transition-all duration-500" style="width: 15%"></div>
+          </div>
+          <div class="mt-2 text-[10px] text-slate-500 flex justify-between">
+            <span>Ref: &lt; 65 ppb (Ideal)</span>
+            <span>Máx: 2200+ ppb</span>
+          </div>
+        </div>
+
+        <!-- Card 3: MQ-135 Delta V (Volts) -->
+        <div class="card-metric rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-lg relative overflow-hidden transition-all duration-300 hover:border-slate-700 hover:shadow-xl">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Variação Tensão MQ-135</span>
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="val-mq135" class="text-3xl font-extrabold font-mono text-white tracking-tight">--</span>
+            <span class="text-sm font-semibold text-slate-400">ΔV</span>
+          </div>
+          <div class="mt-2 text-xs font-medium text-slate-400 flex items-center justify-between">
+            <span>ADC GPIO 34 (12-bit)</span>
+            <span id="status-mq135-badge" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300">Estável</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+            <div id="prog-mq135" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 10%"></div>
+          </div>
+          <div class="mt-2 text-[10px] text-slate-500 flex justify-between">
+            <span>Calibrado vs Baseline</span>
+            <span>Lim: 0.35V</span>
+          </div>
+        </div>
+
+        <!-- Card 4: Estado do Alerta (Field4) -->
+        <div class="card-metric rounded-2xl bg-slate-900 border border-slate-800 p-5 shadow-lg relative overflow-hidden transition-all duration-300 hover:border-slate-700 hover:shadow-xl">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sistema de Alerta</span>
+            <div id="alert-icon-box" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">
+              <i class="fa-solid fa-shield-halved"></i>
+            </div>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="val-alert" class="text-3xl font-extrabold tracking-tight text-white">NORMAL</span>
+          </div>
+          <div class="mt-2 text-xs font-medium text-slate-400 flex items-center justify-between">
+            <span>Gatilho Field4 / Nível</span>
+            <span id="status-alert-badge" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Sem Disparo</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+            <div id="prog-alert" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+          <div class="mt-2 text-[10px] text-slate-500 flex justify-between">
+            <span>Gatilho: Nível &ge; 2</span>
+            <span>Buzzer / LEDs</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Dynamic Chart Section -->
+      <div class="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-area text-emerald-400"></i>
+              Série Temporal de Telemetria (Últimas 30 Leituras)
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">Evolução temporal sincronizada com o canal ThingSpeak #3577130</p>
+          </div>
+
+          <!-- Dataset Visibility Controls -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="toggle-eco2" class="chart-toggle-btn active px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition" onclick="toggleDataset(0)">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 mr-1.5"></span> eCO2 (ppm)
+            </button>
+            <button id="toggle-tvoc" class="chart-toggle-btn active px-3 py-1.5 rounded-lg text-xs font-medium border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 transition" onclick="toggleDataset(1)">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-cyan-400 mr-1.5"></span> TVOC (ppb)
+            </button>
+            <button id="toggle-mq135" class="chart-toggle-btn active px-3 py-1.5 rounded-lg text-xs font-medium border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition" onclick="toggleDataset(2)">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 mr-1.5"></span> MQ-135 (ΔV)
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full h-80 sm:h-96 mt-4">
+          <canvas id="airQualityChart"></canvas>
+          <div id="chart-loader" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-sm z-10 transition-opacity duration-300">
+            <div class="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+            <p class="text-xs text-slate-300 mt-3 font-medium">Carregando telemetria do ThingSpeak...</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: HISTÓRICO DE MEDIÇÕES               -->
+    <!-- ========================================== -->
+    <section id="view-history" class="hidden space-y-6">
+      
+      <!-- Metrics Summary of the 30 samples -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+          <div class="text-xs text-slate-400">Total de Amostras</div>
+          <div id="hist-total-samples" class="text-2xl font-bold font-mono text-white mt-1">30</div>
+          <div class="text-[10px] text-slate-500 mt-1">Últimos feeds gravados</div>
+        </div>
+        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+          <div class="text-xs text-slate-400">Média eCO2</div>
+          <div id="hist-avg-eco2" class="text-2xl font-bold font-mono text-emerald-400 mt-1">--</div>
+          <div class="text-[10px] text-slate-500 mt-1">ppm no período</div>
+        </div>
+        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+          <div class="text-xs text-slate-400">Pico de TVOC</div>
+          <div id="hist-peak-tvoc" class="text-2xl font-bold font-mono text-cyan-400 mt-1">--</div>
+          <div class="text-[10px] text-slate-500 mt-1">ppb detectado</div>
+        </div>
+        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+          <div class="text-xs text-slate-400">Total de Alertas</div>
+          <div id="hist-alert-count" class="text-2xl font-bold font-mono text-amber-400 mt-1">0</div>
+          <div class="text-[10px] text-slate-500 mt-1">Eventos &ge; Moderado</div>
+        </div>
+      </div>
+
+      <!-- History Table Container -->
+      <div class="rounded-2xl bg-slate-900 border border-slate-800 shadow-xl overflow-hidden">
+        <div class="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-emerald-400"></i>
+              Log Detalhado das Medições
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">Histórico sequencial das últimas 30 requisições do ESP32</p>
+          </div>
+          <button id="btn-export-csv" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition flex items-center gap-1.5 self-start sm:self-auto">
+            <i class="fa-solid fa-download text-emerald-400"></i>
+            Exportar CSV
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-950/80 text-slate-400 uppercase font-mono tracking-wider border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4">ID</th>
+                <th class="py-3 px-4">Horário (pt-BR)</th>
+                <th class="py-3 px-4">eCO2 (ppm)</th>
+                <th class="py-3 px-4">TVOC (ppb)</th>
+                <th class="py-3 px-4">MQ-135 (ΔV)</th>
+                <th class="py-3 px-4">Alerta (F4)</th>
+                <th class="py-3 px-4">Nível Geral</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-slate-800/60 font-mono">
+              <tr>
+                <td colspan="7" class="py-8 text-center text-slate-500 font-sans">
+                  Carregando registros do ThingSpeak...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: PAINEL DE ALERTAS                   -->
+    <!-- ========================================== -->
+    <section id="view-alerts" class="hidden space-y-6">
+
+      <!-- Alerts Overview & Incident Log -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left: Incident Log (2 cols) -->
+        <div class="lg:col-span-2 rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-4">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div>
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-bell text-amber-400"></i>
+                Registro de Ocorrências e Incidentes
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5">Leituras que acionaram o estado de alerta (Field4 == 1 ou Nível &ge; 2)</p>
+            </div>
+            <span id="alerts-summary-tag" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300">
+              Nenhuma anomalia
+            </span>
+          </div>
+
+          <div id="alerts-log-list" class="space-y-3 max-h-[460px] overflow-y-auto pr-2">
+            <!-- Dynamically populated or empty placeholder -->
+            <div class="text-center py-12 text-slate-500 text-xs">
+              <i class="fa-solid fa-circle-check text-emerald-400 text-3xl mb-2"></i>
+              <p>Nenhum alerta crítico registrado nas últimas 30 medições.</p>
+              <p class="text-[11px] text-slate-600 mt-1">Ambiente mantido em níveis satisfatórios.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Threshold Rules Reference (1 col) -->
+        <div class="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl space-y-5">
+          <div class="pb-3 border-b border-slate-800">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-scale-balanced text-cyan-400"></i>
+              Matriz de Limites & Classificação
+            </h3>
+            <p class="text-[11px] text-slate-400 mt-0.5">Parâmetros calibrados no firmware C++ do ESP32</p>
+          </div>
+
+          <!-- Limites TVOC -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs font-semibold text-slate-300">
+              <span>TVOC (SGP30)</span>
+              <span class="font-mono text-[11px] text-cyan-400">ppb</span>
+            </div>
+            <div class="text-[11px] space-y-1 text-slate-400 font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+              <div class="flex justify-between"><span class="text-emerald-400">&bull; Excelente:</span> <span>&lt; 65 ppb</span></div>
+              <div class="flex justify-between"><span class="text-cyan-400">&bull; Boa:</span> <span>65 - 219 ppb</span></div>
+              <div class="flex justify-between"><span class="text-amber-400">&bull; Moderada:</span> <span>220 - 659 ppb</span></div>
+              <div class="flex justify-between"><span class="text-orange-400">&bull; Ruim:</span> <span>660 - 2199 ppb</span></div>
+              <div class="flex justify-between"><span class="text-red-400">&bull; Muito Ruim:</span> <span>&ge; 2200 ppb</span></div>
+            </div>
+          </div>
+
+          <!-- Limites eCO2 -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs font-semibold text-slate-300">
+              <span>eCO2 (SGP30)</span>
+              <span class="font-mono text-[11px] text-emerald-400">ppm</span>
+            </div>
+            <div class="text-[11px] space-y-1 text-slate-400 font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+              <div class="flex justify-between"><span class="text-emerald-400">&bull; Excelente:</span> <span>&lt; 600 ppm</span></div>
+              <div class="flex justify-between"><span class="text-cyan-400">&bull; Boa:</span> <span>600 - 999 ppm</span></div>
+              <div class="flex justify-between"><span class="text-amber-400">&bull; Moderada:</span> <span>1000 - 1499 ppm</span></div>
+              <div class="flex justify-between"><span class="text-orange-400">&bull; Ruim:</span> <span>1500 - 2499 ppm</span></div>
+              <div class="flex justify-between"><span class="text-red-400">&bull; Muito Ruim:</span> <span>&ge; 2500 ppm</span></div>
+            </div>
+          </div>
+
+          <!-- Limites MQ-135 Delta V -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs font-semibold text-slate-300">
+              <span>MQ-135 (Δ Tensão)</span>
+              <span class="font-mono text-[11px] text-amber-400">Volts</span>
+            </div>
+            <div class="text-[11px] space-y-1 text-slate-400 font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+              <div class="flex justify-between"><span class="text-emerald-400">&bull; Excelente:</span> <span>&lt; 0.05 V</span></div>
+              <div class="flex justify-between"><span class="text-cyan-400">&bull; Boa:</span> <span>0.05 - 0.09 V</span></div>
+              <div class="flex justify-between"><span class="text-amber-400">&bull; Moderada:</span> <span>0.10 - 0.19 V</span></div>
+              <div class="flex justify-between"><span class="text-orange-400">&bull; Ruim:</span> <span>0.20 - 0.34 V</span></div>
+              <div class="flex justify-between"><span class="text-red-400">&bull; Muito Ruim:</span> <span>&ge; 0.35 V</span></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Action Protocol & Safety Recommendations -->
+      <div class="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl">
+        <h3 class="text-base font-bold text-white mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+          Protocolo de Contingência e Mitigação
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-sm">
+              01
+            </div>
+            <h4 class="text-xs font-bold text-slate-200">Ventilação Ativa</h4>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              Em caso de nível Moderado ou superior, promova renovação de ar imediata abrindo janelas e ativando exaustores mecânicos.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-sm">
+              02
+            </div>
+            <h4 class="text-xs font-bold text-slate-200">Investigação de Fontes</h4>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              Verifique a presença de solventes, aerossóis, tintas, queima de gás de cozinha ou vazamentos nos arredores do sensor MQ-135 e SGP30.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center font-bold text-sm">
+              03
+            </div>
+            <h4 class="text-xs font-bold text-slate-200">Evacuação Preventiva</h4>
+            <p class="text-[11px] text-slate-400 leading-relaxed">
+              Se o status atingir "MUITO RUIM" persistente por mais de 3 ciclos (60s), evacue o recinto e mantenha monitoramento remoto pelo dashboard.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Application Footer -->
+  <footer class="mt-auto border-t border-slate-800 bg-slate-950/80 text-slate-400 text-xs py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span class="font-medium text-slate-300">AeroGuard IoT &bull; ESP32 &amp; ThingSpeak</span>
+        <span class="text-slate-600">|</span>
+        <span class="text-slate-400">SGP30 &amp; MQ-135 Dual Sensor Architecture</span>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <a href="https://github.com/milarocha30/Monitoramento-Qualidade-do-Ar-Esp32" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-white transition flex items-center gap-1.5">
+          <i class="fa-brands fa-github text-sm"></i>
+          <span>GitHub Repo</span>
+        </a>
+        <a href="https://thingspeak.com/channels/3577130" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-emerald-400 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-tower-broadcast text-sm"></i>
+          <span>ThingSpeak #3577130</span>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
