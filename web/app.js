@@ -14,52 +14,57 @@ const CONFIG = {
   }
 };
 
-// Classification Metadata & Styling
+// Classification Metadata & Styling (Glassmorphism & Neon Palette)
 const STATUS_LEVELS = [
   {
     level: 0,
     name: "EXCELENTE",
-    badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+    badgeClass: "badge-neon-emerald",
     bgClass: "bg-emerald-500",
     textClass: "text-emerald-400",
-    desc: "Qualidade do ar ideal. Níveis basais limpos e seguros para permanência prolongada.",
+    glowClass: "neon-glow-emerald",
+    desc: "Qualidade do ar ideal. Níveis basais limpos e perfeitamente seguros.",
     alertClass: ""
   },
   {
     level: 1,
     name: "BOA",
-    badgeClass: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40",
-    bgClass: "bg-cyan-500",
-    textClass: "text-cyan-400",
-    desc: "Qualidade do ar satisfatória. Sem riscos perceptíveis à saúde geral.",
+    badgeClass: "badge-neon-sky",
+    bgClass: "bg-sky-500",
+    textClass: "text-sky-400",
+    glowClass: "neon-glow-sky",
+    desc: "Qualidade do ar satisfatória. Sem riscos ou incômodos perceptíveis.",
     alertClass: ""
   },
   {
     level: 2,
     name: "MODERADA",
-    badgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+    badgeClass: "badge-neon-amber",
     bgClass: "bg-amber-500",
     textClass: "text-amber-400",
-    desc: "Atenção: leve aumento de poluentes voláteis ou CO2. Recomenda-se circulação de ar.",
-    alertClass: "alert-glow-amber"
+    glowClass: "neon-glow-amber",
+    desc: "Atenção: leve aumento de compostos orgânicos ou CO2. Recomenda-se circulação de ar.",
+    alertClass: "alert-banner-amber"
   },
   {
     level: 3,
     name: "RUIM",
-    badgeClass: "bg-orange-500/20 text-orange-300 border-orange-500/40",
+    badgeClass: "badge-neon-orange",
     bgClass: "bg-orange-500",
     textClass: "text-orange-400",
-    desc: "Alerta: ar degradado. Pessoas com sensibilidade respiratória podem sentir irritações.",
-    alertClass: "alert-glow-orange"
+    glowClass: "neon-glow-orange",
+    desc: "Alerta: atmosfera degradada. Pessoas com sensibilidade respiratória podem sentir desconforto.",
+    alertClass: "alert-banner-rose"
   },
   {
     level: 4,
     name: "MUITO RUIM",
-    badgeClass: "bg-red-500/20 text-red-300 border-red-500/40",
-    bgClass: "bg-red-500",
-    textClass: "text-red-400",
-    desc: "Perigo iminente: níveis críticos detectados. Abra janelas, ative exaustores e evacue o local se necessário.",
-    alertClass: "alert-glow-red"
+    badgeClass: "badge-neon-rose",
+    bgClass: "bg-rose-500",
+    textClass: "text-rose-400",
+    glowClass: "neon-glow-rose",
+    desc: "Perigo iminente: níveis críticos detectados. Abra janelas, ligue exaustores e evacue se persistir.",
+    alertClass: "alert-banner-rose"
   }
 ];
 
@@ -126,17 +131,16 @@ function switchTab(tabId) {
   tabs.forEach(tab => {
     const view = document.getElementById(`view-${tab}`);
     const btn = document.getElementById(`tab-${tab}`);
+    const btnMobile = document.getElementById(`tab-${tab}-mobile`);
     
     if (tab === tabId) {
-      view.classList.remove('hidden');
-      btn.classList.add('active');
-      btn.classList.remove('text-slate-400');
-      btn.classList.add('text-white');
+      if (view) view.classList.remove('hidden');
+      if (btn) btn.classList.add('active');
+      if (btnMobile) btnMobile.classList.add('active');
     } else {
-      view.classList.add('hidden');
-      btn.classList.remove('active');
-      btn.classList.remove('text-white');
-      btn.classList.add('text-slate-400');
+      if (view) view.classList.add('hidden');
+      if (btn) btn.classList.remove('active');
+      if (btnMobile) btnMobile.classList.remove('active');
     }
   });
 
