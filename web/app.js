@@ -24,6 +24,7 @@ const state = {
   activeTab: 'dashboard',
   soundEnabled: true,
   isLoading: false,
+  chartInstance: null,
 };
 
 // Thresholds calibrated with ESP32 Firmware
@@ -55,6 +56,10 @@ function switchTab(tabId) {
       btn.classList.add('text-slate-400');
     }
   });
+
+  if (tabId === 'dashboard' && state.chartInstance) {
+    state.chartInstance.resize();
+  }
 }
 
 // Calculate level matching ESP32 firmware function
@@ -94,6 +99,251 @@ function parseFeedEntry(feed) {
   };
 }
 
+// Format Date / Time (pt-BR)
+function formatTime(date) {
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString('pt-BR');
+}
+
+// ============================================================================
+// CHART.JS DYNAMIC VISUALIZATION ENGINE
+// ============================================================================
+function initChart() {
+  const ctx = document.getElementById('airQualityChart');
+  if (!ctx) return;
+
+  const chartCtx = ctx.getContext('2d');
+
+  // Gradient Fills
+  const gradientEco2 = chartCtx.createLinearGradient(0, 0, 0, 300);
+  gradientEco2.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+  gradientEco2.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+  const gradientTvoc = chartCtx.createLinearGradient(0, 0, 0, 300);
+  gradientTvoc.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
+  gradientTvoc.addColorStop(1, 'rgba(6, 182, 212, 0.0)');
+
+  const gradientMq135 = chartCtx.createLinearGradient(0, 0, 0, 300);
+  gradientMq135.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
+  gradientMq135.addColorStop(1, 'rgba(245, 158, 11, 0.0)');
+
+  state.chartInstance = new Chart(chartCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'eCO2 (ppm)',
+          data: [],
+          borderColor: '#10b981',
+          backgroundColor: gradientEco2,
+          borderWidth: 2.2,
+          pointBackgroundColor: '#10b981',
+          pointBorderColor: '#0f172a',
+          pointBorderWidth: 1.5,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          fill: true,
+          tension: 0.35,
+          yAxisID: 'y'
+        },
+        {
+          label: 'TVOC (ppb)',
+          data: [],
+          borderColor: '#06b6d4',
+          backgroundColor: gradientTvoc,
+          borderWidth: 2,
+          pointBackgroundColor: '#06b6d4',
+          pointBorderColor: '#0f172a',
+          pointBorderWidth: 1.5,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          fill: true,
+          tension: 0.35,
+          yAxisID: 'y1'
+        },
+        {
+          label: 'MQ-135 (ΔV)',
+          data: [],
+          borderColor: '#f59e0b',
+          backgroundColor: gradientMq135,
+          borderWidth: 2,
+          pointBackgroundColor: '#f59e0b',
+          pointBorderColor: '#0f172a',
+          pointBorderWidth: 1.5,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          fill: true,
+          tension: 0.35,
+          yAxisID: 'y2'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          display: false, // Handled via our custom buttons
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          titleColor: '#f8fafc',
+          bodyColor: '#cbd5e1',
+          borderColor: 'rgba(51, 65, 85, 0.8)',
+          borderWidth: 1,
+          padding: 12,
+          boxPadding: 6,
+          usePointStyle: true,
+          callbacks: {
+            title: function (items) {
+              return `Horário: ${items[0].label}`;
+            },
+            label: function (context) {
+              const datasetLabel = context.dataset.label || '';
+              const value = context.parsed.y;
+              if (datasetLabel.includes('eCO2')) {
+                return ` ${datasetLabel}: ${value.toFixed(0)} ppm`;
+              } else if (datasetLabel.includes('TVOC')) {
+                return ` ${datasetLabel}: ${value.toFixed(0)} ppb`;
+              } else if (datasetLabel.includes('MQ-135')) {
+                return ` ${datasetLabel}: ${value.toFixed(3)} V`;
+              }
+              return ` ${datasetLabel}: ${value}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {
+            color: 'rgba(51, 65, 85, 0.25)',
+            borderColor: 'rgba(51, 65, 85, 0.6)'
+          },
+          ticks: {
+            color: '#94a3b8',
+            font: { family: 'Inter', size: 10 },
+            maxRotation: 45,
+            minRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 10
+          }
+        },
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: {
+            display: true,
+            text: 'eCO2 (ppm)',
+            color: '#10b981',
+            font: { family: 'Inter', size: 10, weight: 'bold' }
+          },
+          grid: {
+            color: 'rgba(51, 65, 85, 0.25)'
+          },
+          ticks: {
+            color: '#10b981',
+            font: { family: 'Inter', size: 10 },
+            callback: value => `${value}`
+          }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          title: {
+            display: true,
+            text: 'TVOC (ppb)',
+            color: '#06b6d4',
+            font: { family: 'Inter', size: 10, weight: 'bold' }
+          },
+          grid: {
+            drawOnChartArea: false
+          },
+          ticks: {
+            color: '#06b6d4',
+            font: { family: 'Inter', size: 10 }
+          }
+        },
+        y2: {
+          type: 'linear',
+          display: false, // share right side or toggle
+          position: 'right',
+          grid: {
+            drawOnChartArea: false
+          },
+          ticks: {
+            color: '#f59e0b',
+            font: { family: 'Inter', size: 10 }
+          }
+        }
+      }
+    }
+  });
+}
+
+// Toggle individual dataset on Chart
+function toggleDataset(index) {
+  if (!state.chartInstance) return;
+  
+  const isVisible = state.chartInstance.isDatasetVisible(index);
+  state.chartInstance.setDatasetVisibility(index, !isVisible);
+  
+  // Also toggle scale visibility if relevant
+  if (index === 2) {
+    state.chartInstance.options.scales.y2.display = !isVisible;
+  }
+
+  state.chartInstance.update();
+
+  // Update button visual state
+  const btnIds = ['toggle-eco2', 'toggle-tvoc', 'toggle-mq135'];
+  const btn = document.getElementById(btnIds[index]);
+  if (btn) {
+    if (!isVisible) {
+      btn.classList.add('active');
+      btn.classList.remove('inactive');
+    } else {
+      btn.classList.remove('active');
+      btn.classList.add('inactive');
+    }
+  }
+}
+
+// Update Chart with new feeds
+function updateChartData(feeds) {
+  if (!state.chartInstance || !feeds || feeds.length === 0) return;
+
+  const labels = feeds.map(f => formatTime(f.createdAt));
+  const eco2Data = feeds.map(f => f.eco2);
+  const tvocData = feeds.map(f => f.tvoc);
+  const mq135Data = feeds.map(f => f.mq135);
+
+  state.chartInstance.data.labels = labels;
+  state.chartInstance.data.datasets[0].data = eco2Data;
+  state.chartInstance.data.datasets[1].data = tvocData;
+  state.chartInstance.data.datasets[2].data = mq135Data;
+
+  state.chartInstance.update();
+
+  // Hide chart loader spinner
+  const chartLoader = document.getElementById('chart-loader');
+  if (chartLoader) {
+    chartLoader.classList.add('opacity-0');
+    setTimeout(() => {
+      chartLoader.classList.add('hidden');
+    }, 300);
+  }
+}
+
 // Fetch telemetry data from ThingSpeak REST API
 async function fetchThingSpeakData() {
   if (state.isLoading) return;
@@ -126,6 +376,9 @@ async function fetchThingSpeakData() {
         pingIndicator.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
       }
 
+      // Update Chart visualization
+      updateChartData(state.feeds);
+
       console.log(`[AeroGuard] ${state.feeds.length} feeds recebidos com sucesso.`);
     } else {
       console.warn('[AeroGuard] Resposta da API não contém feeds válidos.');
@@ -133,7 +386,6 @@ async function fetchThingSpeakData() {
   } catch (err) {
     console.error('[AeroGuard] Erro ao buscar telemetria do ThingSpeak:', err);
     
-    // Update indicator to warn
     if (statusDot) {
       statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";
     }
@@ -168,6 +420,9 @@ function startPollingTimer() {
 
 // Event Listeners Initialization
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize Chart.js
+  initChart();
+
   // Manual refresh button
   const btnRefresh = document.getElementById('btn-refresh');
   if (btnRefresh) {
