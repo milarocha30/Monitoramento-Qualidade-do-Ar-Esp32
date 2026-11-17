@@ -1,5 +1,5 @@
 /**
- * AeroGuard IoT - Monitoramento da Qualidade do Ar com ESP32
+ * Smart Air IoT - Monitoramento da Qualidade do Ar com ESP32
  * Single Page Application Logic & ThingSpeak Integration
  */
 
@@ -763,7 +763,7 @@ function exportToCSV() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `aeroguard-telemetria-${new Date().toISOString().slice(0, 10)}.csv`);
+  link.setAttribute('download', `smart-air-telemetria-${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -808,12 +808,12 @@ async function fetchThingSpeakData() {
       const latestFeed = state.feeds[state.feeds.length - 1];
       updateDashboardUI(latestFeed, state.feeds);
 
-      console.log(`[AeroGuard] ${state.feeds.length} feeds recebidos com sucesso.`);
+      console.log(`[Smart Air] ${state.feeds.length} feeds recebidos com sucesso.`);
     } else {
-      console.warn('[AeroGuard] Resposta da API não contém feeds válidos.');
+      console.warn('[Smart Air] Resposta da API não contém feeds válidos.');
     }
   } catch (err) {
-    console.error('[AeroGuard] Erro ao buscar telemetria do ThingSpeak:', err);
+    console.error('[Smart Air] Erro ao buscar telemetria do ThingSpeak:', err);
     
     if (statusDot) {
       statusDot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";

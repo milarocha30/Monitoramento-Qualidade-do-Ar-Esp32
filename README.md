@@ -1,4 +1,4 @@
-# 🍃 AeroGuard | Monitoramento Inteligente da Qualidade do Ar com ESP32
+# 🍃 Smart Air | Monitoramento Inteligente da Qualidade do Ar com ESP32
 
 [![ESP32](https://img.shields.io/badge/Hardware-ESP32-E7352C?logo=espressif&logoColor=white)](https://espressif.com/)
 [![ThingSpeak](https://img.shields.io/badge/IoT%20Cloud-ThingSpeak-005B94?logo=mathworks&logoColor=white)](https://thingspeak.com/channels/3577130)
@@ -29,7 +29,7 @@ Sistema IoT completo para monitoramento em tempo real da qualidade do ar em ambi
 
 ## 🔍 Visão Geral
 
-O projeto **AeroGuard** foi concebido para fornecer alerta precoce e diagnóstico contínuo da atmosfera em ambientes fechados (laboratórios, escritórios, residências e salas de servidores). 
+O projeto **Smart Air** foi concebido para fornecer alerta precoce e diagnóstico contínuo da atmosfera em ambientes fechados (laboratórios, escritórios, residências e salas de servidores). 
 
 O microcontrolador ESP32 realiza leituras contínuas, calcula a variação em relação ao baseline calibrado, filtra ruídos elétricos via amostragem ponderada e classifica o estado do ar em 5 níveis normativos. Os dados são sincronizados a cada **20 segundos** via HTTPS na plataforma IoT ThingSpeak e apresentados em um painel web intuitivo com gráficos temporais, tabela de histórico, exportação CSV e alertas audiovisuais.
 
@@ -50,7 +50,7 @@ flowchart TD
         ThingSpeak["ThingSpeak REST API\n(Canal #3577130)"]
     end
 
-    subgraph Frontend ["AeroGuard Web Dashboard"]
+    subgraph Frontend ["Smart Air Web Dashboard"]
         SPA["Single Page Application\n(HTML5 + Tailwind CSS)"]
         Charts["Chart.js Dynamic Engine\n(Séries Temporais)"]
         Alerts["Painel de Contingência\n& Alarmes Sonoros"]

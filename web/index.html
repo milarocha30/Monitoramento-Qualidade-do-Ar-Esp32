@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AeroGuard | Monitoramento da Qualidade do Ar ESP32</title>
-  <meta name="description" content="Dashboard Single Page Application para monitoramento em tempo real da qualidade do ar com ESP32, SGP30, MQ-135 e ThingSpeak." />
+  <title>Smart Air | Dashboard IoT</title>
+  <meta name="description" content="Smart Air - Dashboard IoT Single Page Application para monitoramento em tempo real da qualidade do ar com ESP32, SGP30, MQ-135 e ThingSpeak." />
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z'/></svg>" />
@@ -61,10 +61,10 @@
           <div>
             <div class="flex items-center space-x-2">
               <span class="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-                AeroGuard
+                Smart Air
               </span>
               <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                ESP32 IoT
+                Dashboard IoT
               </span>
             </div>
             <p class="text-xs text-slate-400 hidden sm:block">Monitoramento em Tempo Real de Qualidade do Ar</p>
@@ -111,12 +111,12 @@
         </button>
         <button id="tab-history" class="tab-button flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 transition" onclick="switchTab('history')">
           <i class="fa-solid fa-table-list text-slate-400"></i>
-          <span>Histórico de Medições</span>
+          <span>Medições</span>
           <span id="history-badge" class="ml-1.5 px-2 py-0.2 text-[10px] rounded-full bg-slate-800 text-slate-300">30</span>
         </button>
         <button id="tab-alerts" class="tab-button flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 transition" onclick="switchTab('alerts')">
           <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
-          <span>Painel de Alertas</span>
+          <span>Alertas</span>
           <span id="alerts-count-badge" class="ml-1.5 px-2 py-0.2 text-[10px] rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">0</span>
         </button>
       </nav>
@@ -636,7 +636,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center space-x-2">
         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-        <span class="font-medium text-slate-300">AeroGuard IoT &bull; ESP32 &amp; ThingSpeak</span>
+        <span class="font-medium text-slate-300">Smart Air IoT &bull; ESP32 &amp; ThingSpeak</span>
         <span class="text-slate-600">|</span>
         <span class="text-slate-400">SGP30 &amp; MQ-135 Dual Sensor Architecture</span>
       </div>
